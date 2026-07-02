@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FaitMarquantController;
 use App\Http\Controllers\Auth\ZohoAuthController;
 use App\Http\Controllers\OrganizationAdminController;
@@ -20,7 +21,7 @@ Route::middleware(['guest'])->group(function () {
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::inertia('dashboard', 'Dashboard')
+    Route::get('dashboard', [DashboardController::class, 'index'])
         ->middleware('sup')
         ->name('dashboard');
     Route::get('whiteboard', WhiteboardController::class)->name('whiteboard');

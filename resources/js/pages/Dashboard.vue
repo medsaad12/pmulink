@@ -1,7 +1,16 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
-import PlaceholderPattern from '@/components/PlaceholderPattern.vue';
+import { Building2, LayoutGrid, ListChecks, Users } from 'lucide-vue-next';
 import { dashboard } from '@/routes';
+
+const props = defineProps<{
+    stats: {
+        users: number;
+        organizations: number;
+        departments: number;
+        faitsMarquants: number;
+    };
+}>();
 
 defineOptions({
     layout: {
@@ -13,6 +22,29 @@ defineOptions({
         ],
     },
 });
+
+const cards = [
+    {
+        key: 'users' as const,
+        label: 'Utilisateurs',
+        icon: Users,
+    },
+    {
+        key: 'organizations' as const,
+        label: 'Organisations',
+        icon: Building2,
+    },
+    {
+        key: 'departments' as const,
+        label: 'Départements',
+        icon: LayoutGrid,
+    },
+    {
+        key: 'faitsMarquants' as const,
+        label: 'Sujets',
+        icon: ListChecks,
+    },
+];
 </script>
 
 <template>
@@ -21,27 +53,24 @@ defineOptions({
     <div
         class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4"
     >
-        <div class="grid auto-rows-min gap-4 md:grid-cols-3">
+        <div class="grid auto-rows-min gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div
-                class="relative aspect-video overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border"
+                v-for="card in cards"
+                :key="card.key"
+                class="flex items-center gap-4 rounded-xl border border-sidebar-border/70 p-5 dark:border-sidebar-border"
             >
-                <PlaceholderPattern />
+                <div
+                    class="flex size-12 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"
+                >
+                    <component :is="card.icon" class="size-6" />
+                </div>
+                <div>
+                    <p class="text-sm text-muted-foreground">{{ card.label }}</p>
+                    <p class="text-2xl font-semibold">
+                        {{ props.stats[card.key] }}
+                    </p>
+                </div>
             </div>
-            <div
-                class="relative aspect-video overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border"
-            >
-                <PlaceholderPattern />
-            </div>
-            <div
-                class="relative aspect-video overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border"
-            >
-                <PlaceholderPattern />
-            </div>
-        </div>
-        <div
-            class="relative min-h-[100vh] flex-1 rounded-xl border border-sidebar-border/70 md:min-h-min dark:border-sidebar-border"
-        >
-            <PlaceholderPattern />
         </div>
     </div>
 </template>

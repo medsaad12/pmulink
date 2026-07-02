@@ -401,8 +401,8 @@ function onCloseClick(e) {
             readonly
             spellcheck="false"
             :value="data.projectName || ''"
-            placeholder="Fait marquant"
-            aria-label="Fait marquant"
+            placeholder="Sujet"
+            aria-label="Sujet"
             :class="{ 'pointer-events-none opacity-90': data.readOnly }"
             @click="startEdit"
           />

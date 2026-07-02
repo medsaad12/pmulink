@@ -7,6 +7,7 @@ use App\Http\Requests\UserUpdateRequest;
 use App\Models\Department;
 use App\Models\Role;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -21,10 +22,10 @@ class UserController extends Controller
         $organizationId = $this->currentOrganizationId();
 
         $users = User::query()
-            ->inOrganization($organizationId)
             ->select(['users.id', 'users.name', 'users.email', 'users.created_at', 'users.updated_at'])
             ->with([
                 'departments' => static fn ($query) => $query->select(['departments.id', 'name'])->orderBy('name'),
+                'organizations' => static fn ($query) => $query->select(['organizations.id', 'name'])->orderBy('name'),
             ])
             ->orderBy('name')
             ->paginate(15)
@@ -85,9 +86,10 @@ class UserController extends Controller
     {
         $organizationId = $this->currentOrganizationId();
 
-        // User is a global identity (no tenant scope): ensure it belongs to the
-        // current organization before allowing edits.
-        abort_unless($user->belongsToOrganization($organizationId), 404);
+        // User is a global identity (no tenant scope): allow edits when it
+        // belongs to the current organization, or when it is an orphan (no
+        // organization at all) — in which case saving re-attaches it here.
+        abort_unless($user->belongsToOrganization($organizationId) || $user->isOrphan(), 404);
 
         $validated = $request->validated();
 
@@ -120,7 +122,9 @@ class UserController extends Controller
     /**
      * Remove the user from the current organization (detach membership and
      * this organization's departments). The identity itself is deleted only
-     * when it no longer belongs to any organization.
+     * when it no longer belongs to any organization and is not referenced by
+     * any authored record (which restrictive foreign keys would otherwise
+     * block); referenced identities are kept as orphans.
      */
     public function destroy(User $user): RedirectResponse
     {
@@ -132,18 +136,35 @@ class UserController extends Controller
 
         $organizationId = $this->currentOrganizationId();
 
-        abort_unless($user->belongsToOrganization($organizationId), 404);
+        abort_unless($user->belongsToOrganization($organizationId) || $user->isOrphan(), 404);
 
         $user->organizations()->detach($organizationId);
 
         $currentOrgDepartmentIds = Department::query()->pluck('id')->all();
         $user->departments()->detach($currentOrgDepartmentIds);
 
+        $identityDeleted = false;
+
         if ($user->organizations()->count() === 0) {
-            $user->delete();
+            // The identity is now an orphan. Faits marquants (and their history
+            // and pivot rows) keep restrictive foreign keys back to users to
+            // preserve authorship, so hard-deleting an author would raise a
+            // constraint violation. Only delete when nothing references the
+            // identity; otherwise leave it as an orphan instead of crashing.
+            try {
+                $user->delete();
+                $identityDeleted = true;
+            } catch (QueryException) {
+                // Still referenced by authored records: keep the orphan identity.
+            }
         }
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Utilisateur supprimé.']);
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => $identityDeleted
+                ? 'Utilisateur supprimé.'
+                : 'Utilisateur retiré de l’organisation.',
+        ]);
 
         return to_route('users.index');
     }

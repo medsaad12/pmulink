@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('fait_marquant_histories', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('organization_id')->constrained()->cascadeOnDelete();
             $table->foreignId('fait_marquant_id')->constrained('faits_marquants')->cascadeOnDelete();
             $table->foreignId('changed_by')->nullable()->constrained('users')->restrictOnDelete();
             $table->string('title');

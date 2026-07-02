@@ -648,7 +648,7 @@ const tableViewGroups = computed(() => {
                 ? g.departmentName
                 : (g.faits[0]?.department?.name ??
                   props.departments[0]?.name ??
-                  'Faits marquants');
+                  'Sujets');
         const faits = [...g.faits].sort((a, b) => {
             const tierA = tableViewSortTier(a);
             const tierB = tableViewSortTier(b);
@@ -1859,7 +1859,7 @@ async function exportTableViewPdf(): Promise<void> {
         }));
 
     if (groups.length === 0) {
-        toast.message('Aucun fait marquant à exporter avec les filtres actuels.');
+        toast.message('Aucun sujet à exporter avec les filtres actuels.');
 
         return;
     }
@@ -2446,7 +2446,7 @@ onUnmounted(() => {
                                 type="button"
                                 class="wb-view-switch-btn"
                                 :aria-pressed="false"
-                                aria-label="Vue tableau — faits marquants"
+                                aria-label="Vue tableau — sujets"
                                 title="Vue tableau"
                                 @click="wbMainView = 'table'"
                             >
@@ -2571,7 +2571,7 @@ onUnmounted(() => {
                                         class="wb-view-switch-btn"
                                         :class="{ 'wb-view-switch-btn--active': wbMainView === 'table' }"
                                         :aria-pressed="wbMainView === 'table'"
-                                        aria-label="Vue tableau — faits marquants"
+                                        aria-label="Vue tableau — sujets"
                                         title="Vue tableau"
                                         @click="wbMainView = 'table'"
                                     >
@@ -2760,8 +2760,8 @@ onUnmounted(() => {
                             v-if="showCreateFaitMarquant"
                             type="button"
                             class="inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-violet-600 text-white shadow-md transition hover:bg-violet-700 focus-visible:ring-2 focus-visible:ring-violet-500/50 focus-visible:ring-offset-2 focus-visible:outline-none dark:hover:bg-violet-500"
-                            aria-label="Ajouter un fait marquant"
-                            title="Ajouter un fait marquant"
+                            aria-label="Ajouter un sujet"
+                            title="Ajouter un sujet"
                             @click="openCreate"
                         >
                             <Plus class="size-4 shrink-0" :stroke-width="2.5" aria-hidden="true" />
@@ -2779,7 +2779,7 @@ onUnmounted(() => {
                             <table class="wb-general-table">
                                 <thead class="wb-general-table__head">
                                     <tr class="wb-general-table__head-row">
-                                        <th class="wb-general-th wb-general-th--title">Fait marquant</th>
+                                        <th class="wb-general-th wb-general-th--title">Sujet</th>
                                         <th class="wb-general-th wb-general-th--pivot">Prochaines étapes</th>
                                         <th class="wb-general-th wb-general-th--pivot">Commentaires</th>
                                         <th class="wb-general-th wb-general-th--fait-status">Statut</th>
@@ -3501,14 +3501,14 @@ onUnmounted(() => {
                                                             ? 'Enregistrement en cours'
                                                             : !userCanEditFaitMarquant(fait)
                                                               ? 'Lecture seule — autre département'
-                                                              : 'Modifier le fait marquant'
+                                                              : 'Modifier le sujet'
                                                     "
                                                     :title="
                                                         tableInlineSaving[fait.id]
                                                             ? 'Enregistrement en cours'
                                                             : !userCanEditFaitMarquant(fait)
                                                               ? 'Lecture seule (autre département)'
-                                                              : 'Modifier le fait marquant'
+                                                              : 'Modifier le sujet'
                                                     "
                                                     @click="openEdit(fait.id)"
                                                 >
@@ -3533,8 +3533,8 @@ onUnmounted(() => {
                                                         tableHistoryFaitId !== null &&
                                                         tableHistoryFaitId === fait.id
                                                     "
-                                                    aria-label="Historique du fait marquant"
-                                                    title="Historique du fait marquant"
+                                                    aria-label="Historique du sujet"
+                                                    title="Historique du sujet"
                                                     @click.stop="toggleTableHistoryPanel(fait.id)"
                                                 >
                                                     <History
@@ -3556,9 +3556,9 @@ onUnmounted(() => {
                                                     :title="
                                                         tableFaitIsCloture(fait)
                                                             ? 'Déjà clôturé'
-                                                            : 'Clôturer le fait marquant'
+                                                            : 'Clôturer le sujet'
                                                     "
-                                                    aria-label="Clôturer le fait marquant"
+                                                    aria-label="Clôturer le sujet"
                                                     @click.stop="cloturerTableFait(fait.id)"
                                                 >
                                                     <CircleCheck
@@ -3580,9 +3580,9 @@ onUnmounted(() => {
                                                     :title="
                                                         tableFaitIsArchive(fait)
                                                             ? 'Déjà archivé'
-                                                            : 'Archiver le fait marquant'
+                                                            : 'Archiver le sujet'
                                                     "
-                                                    aria-label="Archiver le fait marquant"
+                                                    aria-label="Archiver le sujet"
                                                     @click.stop="archiverTableFait(fait.id)"
                                                 >
                                                     <Archive
@@ -3605,7 +3605,7 @@ onUnmounted(() => {
                     v-if="faitsForTableGrouping.length === 0"
                     class="rounded-lg border border-dashed border-muted-foreground/30 bg-muted/20 px-4 py-10 text-center text-sm text-muted-foreground"
                 >
-                    Aucun fait marquant pour ce filtre.
+                    Aucun sujet pour ce filtre.
                 </p>
             </div>
         </div>
@@ -3616,14 +3616,14 @@ onUnmounted(() => {
             id="faits-marquants-sheet"
             class="wb-faits-drawer flex h-full w-full max-w-full flex-col gap-0 border-l border-border bg-background p-0 shadow-xl sm:max-w-[min(100vw-1rem,24rem)]"
             :class="{ 'wb-faits-drawer--open': sidebarOpen }"
-            aria-label="Faits marquants"
+            aria-label="Sujets"
         >
                 <header class="space-y-3 border-b border-border px-5 pb-4 pt-6 text-left">
                     <h2 class="text-xl font-semibold tracking-tight">
-                        Faits marquants
+                        Sujets
                     </h2>
                     <p class="text-left text-sm leading-relaxed text-muted-foreground">
-                        Glissez un fait marquant sur le tableau ou cliquez dessus pour l’afficher. Fait marquant déjà
+                        Glissez un sujet sur le tableau ou cliquez dessus pour l’afficher. Sujet déjà
                         sur le tableau : clic pour le sélectionner.
                     </p>
                     <button
@@ -3632,7 +3632,7 @@ onUnmounted(() => {
                         class="flex w-full items-center justify-center rounded-lg border-2 border-dashed border-violet-400/80 bg-violet-50/50 py-3 text-sm font-medium text-violet-700 transition hover:bg-violet-100/80 dark:border-violet-500/50 dark:bg-violet-950/30 dark:text-violet-200 dark:hover:bg-violet-950/50"
                         @click="openCreate"
                     >
-                        Ajouter un fait marquant
+                        Ajouter un sujet
                     </button>
                 </header>
 
@@ -3643,7 +3643,7 @@ onUnmounted(() => {
                         <p
                             class="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase"
                         >
-                            Faits marquants disponibles
+                            Sujets disponibles
                         </p>
                         <div class="flex flex-wrap gap-1.5">
                             <button type="button" class="wb-faits-list-action" @click="collapseAll">
@@ -3721,7 +3721,7 @@ onUnmounted(() => {
                             v-else
                             class="rounded-lg border border-dashed border-muted-foreground/25 bg-muted/20 px-4 py-8 text-center text-sm text-muted-foreground"
                         >
-                            Aucun fait marquant pour le moment. Utilisez le bouton ci-dessus pour en créer un.
+                            Aucun sujet pour le moment. Utilisez le bouton ci-dessus pour en créer un.
                         </p>
                     </div>
                 </div>
@@ -3734,7 +3734,7 @@ onUnmounted(() => {
             :class="[faitsSheetFabBaseClass, { 'faits-sheet-fab--open': sidebarOpen }]"
             :aria-expanded="sidebarOpen"
             aria-controls="faits-marquants-sheet"
-            :aria-label="sidebarOpen ? 'Fermer le panneau Faits marquants' : 'Ouvrir le panneau Faits marquants'"
+            :aria-label="sidebarOpen ? 'Fermer le panneau Sujets' : 'Ouvrir le panneau Sujets'"
             @click="toggleFab"
         >
             <span class="relative flex size-8 items-center justify-center" aria-hidden="true">
@@ -3767,13 +3767,13 @@ onUnmounted(() => {
                 <!-- Fixed header -->
                 <div class="relative shrink-0 border-b border-border/80 bg-gradient-to-b from-muted/50 to-muted/25 px-6 pb-4 pt-6 pr-14 sm:pr-40">
                     <h2 class="space-y-0 p-0 text-left text-xl font-semibold tracking-tight text-foreground md:text-2xl">
-                        {{ editingId === null ? 'Nouveau fait marquant' : 'Modifier le fait marquant' }}
+                        {{ editingId === null ? 'Nouveau sujet' : 'Modifier le sujet' }}
                     </h2>
                     <p class="sr-only">
                         {{
                             editingId === null
-                                ? 'Création d\'un fait marquant.'
-                                : 'Modification d\'un fait marquant.'
+                                ? 'Création d\'un sujet.'
+                                : 'Modification d\'un sujet.'
                         }}
                     </p>
                     <div class="absolute top-3 right-3 flex max-w-[calc(100%-1.5rem)] items-center justify-end gap-2 sm:top-4 sm:right-4">
@@ -3846,7 +3846,7 @@ onUnmounted(() => {
 
                     <!-- Fait marquant -->
                     <div class="space-y-2">
-                        <label class="wb-fait-form-label" for="fait-form-nom">Fait marquant</label>
+                        <label class="wb-fait-form-label" for="fait-form-nom">Sujet</label>
                         <textarea
                             id="fait-form-nom"
                             v-model="form.title"
@@ -3862,7 +3862,7 @@ onUnmounted(() => {
 
                     <!-- Tab switch: Prochaines étapes / Commentaires -->
                     <div class="space-y-3">
-                        <div class="wb-fait-tab-switch" role="tablist" aria-label="Listes du fait marquant">
+                        <div class="wb-fait-tab-switch" role="tablist" aria-label="Listes du sujet">
                             <button
                                 type="button"
                                 role="tab"
@@ -4219,7 +4219,7 @@ onUnmounted(() => {
 
             <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-4">
                 <p v-if="tableHistoryFait === null" class="text-sm text-muted-foreground">
-                    Fait marquant introuvable.
+                    Sujet introuvable.
                 </p>
                 <template v-else>
                     <p v-if="weeklyTimelineLoading" class="text-sm text-muted-foreground">
@@ -4256,7 +4256,7 @@ onUnmounted(() => {
                                         :style="w.snapshot.workflow_status?.color && isHexColor(w.snapshot.workflow_status.color) ? { backgroundColor: w.snapshot.workflow_status.color, color: '#fff' } : {}"
                                     >{{ w.snapshot.workflow_status?.name ?? '—' }}</span>
                                 </div>
-                                <p class="wb-table-history-week-kicker">Fait marquant</p>
+                                <p class="wb-table-history-week-kicker">Sujet</p>
                                 <p class="wb-table-history-week-fait-title">{{ w.snapshot.title }}</p> 
                                 <p
                                     v-if="w.snapshot.responsable_action?.name"
@@ -4397,8 +4397,8 @@ onUnmounted(() => {
                                     rows="3"
                                     required
                                     spellcheck="false"
-                                    placeholder="Fait marquant"
-                                    aria-label="Fait marquant"
+                                    placeholder="Sujet"
+                                    aria-label="Sujet"
                                 />
                             </div>
                             <p v-if="form.errors.title" class="text-[11px] font-semibold text-destructive">

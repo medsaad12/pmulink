@@ -11,6 +11,7 @@ export type User = {
     email_verified_at: string | null;
     role_id: number;
     departments?: DepartmentSummary[];
+    organizations?: OrganizationSummary[];
     role?: { id: number; name: string } | null;
     created_at: string;
     updated_at: string;

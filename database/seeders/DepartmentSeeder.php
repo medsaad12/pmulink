@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Department;
+use App\Models\Organization;
 use Illuminate\Database\Seeder;
 
 class DepartmentSeeder extends Seeder
@@ -11,36 +12,28 @@ class DepartmentSeeder extends Seeder
      * @var list<string>
      */
     private const NAMES = [
-        'Finance',
-        'Juridique',
-        'RH',
-        'ADV',
-        'Achats',
-        'Approvisionnement',
-        'Production',
-        'Maintenance & Optimisation',
-        'Utilités et Moyens généraux',
-        'Affaires réglementaires',
-        'Pharmacovigilance',
-        'R&D',
-        'Logistique',
-        'Supply chain',
-        'Projets',
-        'Commettant',
-        'Commercial',
-        'Marketing',
-        'Medical',
-        'Corporate / M&A',
-        'QHSE',
-        'Technologie',
-        'Laboratoire de contrôle',
-   
+        'Formes sèches',
+        'Formes liquides & pateuses',
+        'Formes stériles',
+        'Maintenance process',
+        'Utilités',
+        'Moyens généraux',
+        'Ordonnancement',
+        'Performances industrielle',
+        'Gestion resources',
     ];
 
     public function run(): void
     {
+        // Departments are tenant-owned: scope them to the bound (or first) org.
+        $organizationId = Department::currentOrganizationId()
+            ?? Organization::query()->orderBy('id')->value('id');
+
         foreach (self::NAMES as $name) {
-            Department::query()->updateOrCreate(['name' => $name]);
+            Department::query()->updateOrCreate([
+                'organization_id' => $organizationId,
+                'name' => $name,
+            ]);
         }
     }
 }

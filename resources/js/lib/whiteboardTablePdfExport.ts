@@ -43,7 +43,7 @@ export type WhiteboardTablePdfExportOptions = {
 };
 
 const PDF_COLUMNS = [
-    'Fait marquant',
+    'Sujet',
     'Statut',
     'Responsable action',
     'Date création',
@@ -382,7 +382,7 @@ export async function downloadWhiteboardTablePdf(options: WhiteboardTablePdfExpo
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(16);
-    doc.text('Rapport - Faits marquants de la semaine', MARGIN_X, y);
+    doc.text('Rapport - Sujets de la semaine', MARGIN_X, y);
 
     y += 8;
     doc.setFont('helvetica', 'normal');
@@ -475,6 +475,6 @@ export async function downloadWhiteboardTablePdf(options: WhiteboardTablePdfExpo
         y = (finalY ?? y) + 10;
     }
 
-    const base = options.fileBaseName ?? `rapport-faits-marquants-${todayFileStamp()}`;
+    const base = options.fileBaseName ?? `rapport-sujets-${todayFileStamp()}`;
     doc.save(`${base}.pdf`);
 }

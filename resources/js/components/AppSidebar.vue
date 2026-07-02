@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import { Building2, LayoutGrid, Network, /* Shield, */ Users } from 'lucide-vue-next';
+import { LayoutGrid, Network, /* Shield, */ Users } from 'lucide-vue-next';
 import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import NavMain from '@/components/NavMain.vue';
 import NavUser from '@/components/NavUser.vue';
-import OrgSwitcher from '@/components/OrgSwitcher.vue';
 import {
     Sidebar,
     SidebarContent,
@@ -19,7 +18,6 @@ import { useIsSup } from '@/composables/useIsSup';
 import { usePermissions } from '@/composables/usePermissions';
 import { useWeekRange } from '@/composables/useWeekRange';
 import { dashboard, whiteboard } from '@/routes';
-import { index as departmentsIndex } from '@/routes/departments';
 // import { index as rolesIndex } from '@/routes/roles';
 import { index as usersIndex } from '@/routes/users';
 import type { NavItem } from '@/types';
@@ -60,14 +58,6 @@ const mainNavItems = computed<NavItem[]>(() => {
     //     });
     // }
 
-    if (can('departments.view')) {
-        items.push({
-            title: 'Départements',
-            href: departmentsIndex(),
-            icon: Building2,
-        });
-    }
-
     return items;
 });
 </script>
@@ -95,9 +85,6 @@ const mainNavItems = computed<NavItem[]>(() => {
         </SidebarHeader>
 
         <SidebarContent>
-            <div class="px-2 group-data-[collapsible=icon]:hidden">
-                <OrgSwitcher />
-            </div>
             <NavMain :items="mainNavItems" />
         </SidebarContent>
 

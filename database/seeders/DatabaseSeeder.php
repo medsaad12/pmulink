@@ -17,7 +17,7 @@ class DatabaseSeeder extends Seeder
     {
         $organization = Organization::query()->updateOrCreate(
             ['slug' => 'main'],
-            ['name' => 'Comex', 'is_active' => true],
+            ['name' => 'Production, maintenance, utilités', 'is_active' => true],
         );
 
         // Bind the org so tenant-owned models seeded below are auto-stamped.
@@ -26,6 +26,7 @@ class DatabaseSeeder extends Seeder
         $this->call(FaitMarquantReferenceSeeder::class);
         $this->call(DepartmentSeeder::class);
         $this->call(RbacSeeder::class);
+        $this->call(UserSeeder::class);
 
         $admin = Role::query()->where('name', 'Administrateur')->firstOrFail();
 

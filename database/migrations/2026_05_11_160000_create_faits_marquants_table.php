@@ -10,6 +10,7 @@ return new class extends Migration
     {
         Schema::create('faits_marquants', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('organization_id')->constrained()->cascadeOnDelete();
             $table->string('title');
             $table->foreignId('fait_status_id')->constrained('fait_statuses')->restrictOnDelete();
             $table->foreignId('status_id')->constrained('statuses')->restrictOnDelete();

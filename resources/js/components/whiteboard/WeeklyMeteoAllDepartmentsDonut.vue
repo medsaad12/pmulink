@@ -151,7 +151,7 @@ const ariaLabel = computed(() => {
     const t = props.total;
 
     if (t <= 0) {
-        return 'Aucun fait marquant ouvert avec statut renseigné';
+        return 'Aucun sujet ouvert avec statut renseigné';
     }
 
     return rows.value.map((r) => r.aria).join('. ');
@@ -160,7 +160,7 @@ const ariaLabel = computed(() => {
 
 <template>
     <div class="wb-all-meteo" :class="{ 'wb-all-meteo--fill': props.fill }" role="img" :aria-label="ariaLabel">
-        <div v-if="total <= 0" class="wb-all-meteo__empty">Aucun fait marquant ouvert avec statut renseigné.</div>
+        <div v-if="total <= 0" class="wb-all-meteo__empty">Aucun sujet ouvert avec statut renseigné.</div>
         <div v-else class="wb-all-meteo__body">
             <div class="wb-all-meteo__chart" aria-hidden="true">
                 <svg class="wb-all-meteo__svg" viewBox="0 0 100 100">

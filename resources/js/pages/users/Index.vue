@@ -7,6 +7,7 @@ import {
     AlertDescription,
     AlertTitle,
 } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -167,6 +168,7 @@ function hasFormErrors(errors: Record<string, unknown>): boolean {
                         <tr>
                             <th class="px-4 py-3 font-medium">Nom</th>
                             <th class="px-4 py-3 font-medium">E-mail</th>
+                            <th class="px-4 py-3 font-medium">Organisation</th>
                             <th class="px-4 py-3 font-medium">Rôle</th>
                             <th class="px-4 py-3 font-medium">Département</th>
                             <th
@@ -179,7 +181,7 @@ function hasFormErrors(errors: Record<string, unknown>): boolean {
                     <tbody>
                         <tr v-if="props.users.data.length === 0">
                             <td
-                                colspan="5"
+                                colspan="6"
                                 class="px-4 py-12 text-center text-muted-foreground"
                             >
                                 <Users
@@ -199,6 +201,21 @@ function hasFormErrors(errors: Record<string, unknown>): boolean {
                             </td>
                             <td class="px-4 py-3 text-muted-foreground">
                                 {{ user.email }}
+                            </td>
+                            <td class="px-4 py-3 text-muted-foreground">
+                                <div
+                                    v-if="user.organizations?.length"
+                                    class="flex flex-wrap gap-1"
+                                >
+                                    <Badge
+                                        v-for="o in user.organizations"
+                                        :key="o.id"
+                                        variant="secondary"
+                                    >
+                                        {{ o.name }}
+                                    </Badge>
+                                </div>
+                                <span v-else class="italic">—</span>
                             </td>
                             <td class="px-4 py-3 text-muted-foreground">
                                 <span v-if="user.role?.name">{{

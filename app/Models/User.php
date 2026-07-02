@@ -58,6 +58,22 @@ class User extends Authenticatable
     }
 
     /**
+     * Users reachable from an organization's user administration: members of
+     * the given organization, plus "orphan" identities that currently belong
+     * to no organization (e.g. detached elsewhere) so they stay manageable
+     * instead of silently disappearing.
+     *
+     * @param  Builder<User>  $query
+     */
+    public function scopeManageableInOrganization(Builder $query, int $organizationId): void
+    {
+        $query->where(function (Builder $q) use ($organizationId): void {
+            $q->whereHas('organizations', static fn (Builder $sub) => $sub->whereKey($organizationId))
+                ->orWhereDoesntHave('organizations');
+        });
+    }
+
+    /**
      * @return BelongsToMany<Department, $this>
      */
     public function departments(): BelongsToMany
@@ -137,6 +153,14 @@ class User extends Authenticatable
     public function belongsToOrganization(int $organizationId): bool
     {
         return in_array($organizationId, $this->organizationIds(), true);
+    }
+
+    /**
+     * True when the identity currently belongs to no organization at all.
+     */
+    public function isOrphan(): bool
+    {
+        return $this->organizations()->doesntExist();
     }
 
     /**

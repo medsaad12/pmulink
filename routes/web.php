@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\FaitMarquantController;
 use App\Http\Controllers\Auth\ZohoAuthController;
 use App\Http\Controllers\OrganizationAdminController;
@@ -32,8 +31,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware('sup')->group(function () {
         Route::get('admin/organizations', [OrganizationAdminController::class, 'index'])->name('admin.organizations.index');
         Route::post('admin/organizations', [OrganizationAdminController::class, 'store'])->name('admin.organizations.store');
+        Route::put('admin/organizations/{organization}', [OrganizationAdminController::class, 'update'])->name('admin.organizations.update');
+        Route::delete('admin/organizations/{organization}', [OrganizationAdminController::class, 'destroy'])->name('admin.organizations.destroy');
         Route::post('admin/organizations/{organization}/members', [OrganizationAdminController::class, 'attachMember'])->name('admin.organizations.members.attach');
+        Route::put('admin/organizations/{organization}/members/{user}', [OrganizationAdminController::class, 'updateMember'])->name('admin.organizations.members.update');
         Route::delete('admin/organizations/{organization}/members/{user}', [OrganizationAdminController::class, 'detachMember'])->name('admin.organizations.members.detach');
+        Route::post('admin/organizations/{organization}/departments', [OrganizationAdminController::class, 'storeDepartment'])->name('admin.organizations.departments.store');
+        Route::put('admin/organizations/{organization}/departments/{department}', [OrganizationAdminController::class, 'updateDepartment'])->name('admin.organizations.departments.update');
+        Route::delete('admin/organizations/{organization}/departments/{department}', [OrganizationAdminController::class, 'destroyDepartment'])->name('admin.organizations.departments.destroy');
     });
 
     Route::post('faits-marquants', [FaitMarquantController::class, 'store'])->name('faits-marquants.store');
@@ -73,18 +78,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('permission:roles.delete')
         ->name('roles.destroy');
 
-    Route::get('departments', [DepartmentController::class, 'index'])
-        ->middleware('permission:departments.view')
-        ->name('departments.index');
-    Route::post('departments', [DepartmentController::class, 'store'])
-        ->middleware('permission:departments.create')
-        ->name('departments.store');
-    Route::put('departments/{department}', [DepartmentController::class, 'update'])
-        ->middleware('permission:departments.edit')
-        ->name('departments.update');
-    Route::delete('departments/{department}', [DepartmentController::class, 'destroy'])
-        ->middleware('permission:departments.delete')
-        ->name('departments.destroy');
 });
 
 require __DIR__.'/settings.php';

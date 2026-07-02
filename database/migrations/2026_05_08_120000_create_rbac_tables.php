@@ -10,8 +10,9 @@ return new class extends Migration
      * Run the migrations.
      *
      * Permissions: stable machine identifier in {@see $table->string('name')} (unique),
-     * optional human text in {@see description}. Roles: name + description only.
-     * Pivot {@see permission_role} uses nullOnDelete on foreign keys.
+     * optional human text in {@see description}. Roles are per-organization
+     * (unique by organization + name). Pivot {@see permission_role} uses
+     * nullOnDelete on foreign keys.
      */
     public function up(): void
     {
@@ -25,10 +26,13 @@ return new class extends Migration
 
         Schema::create('roles', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('organization_id')->constrained()->cascadeOnDelete();
             $table->string('name');
             $table->string('description')->nullable();
             $table->timestamps();
             $table->softDeletes();
+
+            $table->unique(['organization_id', 'name']);
         });
 
         Schema::create('permission_role', function (Blueprint $table) {
@@ -39,14 +43,6 @@ return new class extends Migration
 
             $table->unique(['role_id', 'permission_id']);
         });
-
-        Schema::table('users', function (Blueprint $table) {
-            $table->foreignId('role_id')
-                ->nullable()
-                ->after('id')
-                ->constrained('roles')
-                ->nullOnDelete();
-        });
     }
 
     /**
@@ -54,10 +50,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            $table->dropConstrainedForeignId('role_id');
-        });
-
         Schema::dropIfExists('permission_role');
         Schema::dropIfExists('roles');
         Schema::dropIfExists('permissions');

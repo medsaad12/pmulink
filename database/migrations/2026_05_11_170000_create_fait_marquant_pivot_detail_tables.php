@@ -15,6 +15,7 @@ return new class extends Migration
     {
         Schema::create('fait_marquant_prochaine_etape', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('organization_id')->constrained()->cascadeOnDelete();
             $table->foreignId('fait_marquant_id')->constrained('faits_marquants')->cascadeOnDelete();
             $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
             $table->foreignId('responsable_action_id')->nullable()->constrained('users')->nullOnDelete();
@@ -29,6 +30,7 @@ return new class extends Migration
 
         Schema::create('fait_marquant_commentaire', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('organization_id')->constrained()->cascadeOnDelete();
             $table->foreignId('fait_marquant_id')->constrained('faits_marquants')->cascadeOnDelete();
             $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
             $table->text('body');

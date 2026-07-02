@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('fait_marquant_drafts', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('organization_id')->constrained()->cascadeOnDelete();
             $table->foreignId('fait_marquant_id')->constrained('faits_marquants')->cascadeOnDelete();
             $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
             $table->string('title');
@@ -28,6 +29,7 @@ return new class extends Migration
 
         Schema::create('fait_marquant_draft_prochaine_etape', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('organization_id')->constrained('organizations', 'id', 'fmdpe_org_fk')->cascadeOnDelete();
             $table->foreignId('fait_marquant_draft_id')
                 ->constrained('fait_marquant_drafts', 'id', 'fmdpe_draft_fk')
                 ->cascadeOnDelete();
@@ -44,6 +46,7 @@ return new class extends Migration
 
         Schema::create('fait_marquant_draft_commentaire', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('organization_id')->constrained('organizations', 'id', 'fmdc_org_fk')->cascadeOnDelete();
             $table->foreignId('fait_marquant_draft_id')
                 ->constrained('fait_marquant_drafts', 'id', 'fmdc_draft_fk')
                 ->cascadeOnDelete();

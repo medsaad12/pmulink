@@ -34,7 +34,7 @@ class FaitMarquantStoreRequest extends FormRequest
             'title' => ['required', 'string', 'max:255'],
             'fait_status_id' => ['required', 'integer', 'exists:fait_statuses,id'],
             'status_id' => ['required', 'integer', 'exists:statuses,id'],
-            'deadline' => ['required', 'date'],
+            'deadline' => ['required_without:prochaines_etapes', 'nullable', 'date'],
             'department_id' => $user?->isGlobalUser()
                 ? ['required', 'integer', Rule::exists('departments', 'id')->where('organization_id', (int) app('currentOrganizationId'))]
                 : ['required', 'integer', Rule::in($user?->departmentIds() ?? [])],

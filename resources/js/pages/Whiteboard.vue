@@ -43,6 +43,7 @@ import type {
     ActionResponsibleOption,
     DepartmentOption,
     EtapeStatusOption,
+    FaitMarquantPivotRow,
     FaitMarquantView,
     FaitMarquantWeeklyTimelineWeek,
     FaitStatusOption,
@@ -187,8 +188,13 @@ const currentUserDepartmentIds = computed((): number[] => {
     return userDepartments.value.map((d) => d.id);
 });
 
-/** Deadline : obligatoire à la création ; à l'édition, seuls les utilisateurs globaux peuvent la modifier. */
-const showFaitFormDeadlineField = computed(() => editingId.value === null || isGlobalUser.value);
+/**
+ * Deadline générale : masquée dès qu'au moins une étape existe (l'échéance est alors portée par les étapes).
+ * Sinon : obligatoire à la création ; à l'édition, seuls les utilisateurs globaux peuvent la modifier.
+ */
+const showFaitFormDeadlineField = computed(
+    () => (editingId.value === null || isGlobalUser.value) && draftEtapes.value.length === 0,
+);
 
 /** `null` = filtre « Tous » (tous les départements visibles). */
 const departmentFilterId = ref<number | null>(null);
@@ -230,13 +236,33 @@ const ownerTableFiltersActive = computed(
         ownerTableFilterDateEnd.value !== '',
 );
 
-/** Département du fait assigné à l'utilisateur, ou utilisateur global — aligné sur `allowsCollaborationFrom` côté API. */
+/** Utilisateur global, responsable d'action (du fait ou d'une étape), ou membre du département — aligné sur `allowsCollaborationFrom` côté API. */
 function userCanEditFaitMarquant(fait: FaitMarquantView): boolean {
     if (isGlobalUser.value) {
         return true;
     }
 
+    if (userIsResponsableForFait(fait)) {
+        return true;
+    }
+
     return currentUserDepartmentIds.value.includes(Number(fait.department_id));
+}
+
+/** L'utilisateur courant est-il responsable d'action du fait lui-même ou d'une de ses prochaines étapes ? */
+function userIsResponsableForFait(fait: FaitMarquantView): boolean {
+    const authUserId = page.props.auth.user?.id;
+    if (authUserId === undefined || authUserId === null) {
+        return false;
+    }
+
+    if (Number(fait.responsable_action_id) === Number(authUserId)) {
+        return true;
+    }
+
+    return (fait.prochaines_etapes ?? []).some(
+        (etape) => Number(etape.responsable_action_id) === Number(authUserId),
+    );
 }
 
 function isFaitEditableForStickyBoard(faitId: number): boolean {
@@ -792,6 +818,31 @@ function tableEtapesDisplayRows(fait: FaitMarquantView): ProchaineEtapeInput[] {
 
 function tableCommentairesDisplayRows(fait: FaitMarquantView): string[] {
     return tableDraftFor(fait).commentaires.map((s) => s.trim()).filter((s) => s !== '');
+}
+
+/** Libellé léger de l'auteur d'un commentaire : son nom, sinon son identifiant. */
+function commentAuthorLabel(row: FaitMarquantPivotRow): string | null {
+    if (row.user?.name) {
+        return row.user.name;
+    }
+
+    if (row.user_id !== undefined && row.user_id !== null) {
+        return `#${row.user_id}`;
+    }
+
+    return null;
+}
+
+/** Lignes de commentaires (lecture) avec l'auteur, pour l'affichage du tableau. */
+function tableCommentairesReadRows(
+    fait: FaitMarquantView,
+): { body: string; authorLabel: string | null }[] {
+    return (fait.commentaires ?? [])
+        .filter((row) => (row.body ?? '').trim() !== '')
+        .map((row) => ({
+            body: row.body.trim(),
+            authorLabel: commentAuthorLabel(row),
+        }));
 }
 
 function tableEtapeResponsableLabel(responsableId: number): string {
@@ -1975,7 +2026,7 @@ function submitFait(): void {
         return;
     }
 
-    if (editingId.value === null) {
+    if (editingId.value === null && draftEtapes.value.length === 0) {
         if (form.deadline === null || String(form.deadline).trim() === '') {
             form.setError('deadline', 'La date limite est obligatoire.');
 
@@ -2001,6 +2052,8 @@ function submitFait(): void {
 
         if (editingId.value !== null && isDepartmentUser.value) {
             delete payload.deadline;
+        } else if (draftEtapes.value.length > 0) {
+            payload.deadline = null;
         }
 
         return payload;
@@ -3381,19 +3434,25 @@ onUnmounted(() => {
                                                                 </tr>
                                                             </thead>
                                                             <tbody>
-                                                                <tr v-if="tableCommentairesDisplayRows(fait).length === 0">
+                                                                <tr v-if="tableCommentairesReadRows(fait).length === 0">
                                                                     <td colspan="2" class="wb-nested-pivot-empty">
                                                                         Aucun commentaire
                                                                     </td>
                                                                 </tr>
                                                                 <tr
-                                                                    v-for="(line, i) in tableCommentairesDisplayRows(fait)"
+                                                                    v-for="(row, i) in tableCommentairesReadRows(fait)"
                                                                     :key="`${fait.id}-comment-read-${i}`"
                                                                     class="wb-nested-pivot-row"
                                                                 >
                                                                     <td class="wb-nested-pivot-td wb-nested-pivot-td--num">{{ i + 1 }}</td>
                                                                     <td class="wb-nested-pivot-td wb-nested-pivot-td--body">
-                                                                        <span class="wb-nested-pivot-text">{{ line }}</span>
+                                                                        <span class="wb-nested-pivot-text">{{ row.body }}</span>
+                                                                        <span
+                                                                            v-if="row.authorLabel"
+                                                                            class="wb-nested-pivot-author"
+                                                                        >
+                                                                            {{ row.authorLabel }}
+                                                                        </span>
                                                                     </td>
                                                                 </tr>
                                                             </tbody>
@@ -5695,6 +5754,19 @@ onUnmounted(() => {
     overflow-wrap: break-word;
     word-break: break-word;
     white-space: pre-wrap;
+}
+
+.wb-nested-pivot-author {
+    display: block;
+    margin-top: 0.15rem;
+    font-size: 0.6875rem;
+    font-style: italic;
+    line-height: 1.2;
+    color: rgb(148 163 184);
+}
+
+.dark .wb-nested-pivot-author {
+    color: rgb(100 116 139);
 }
 
 .wb-nested-pivot-table--etapes .wb-nested-pivot-text--edit {

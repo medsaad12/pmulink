@@ -108,7 +108,8 @@ class FaitMarquant extends Model
     }
 
     /**
-     * Mise à jour / suppression : utilisateur global, ou fait rattaché à un département assigné à l'utilisateur.
+     * Mise à jour / suppression : utilisateur global, responsable d'action (du fait
+     * ou d'une prochaine étape), ou fait rattaché à un département assigné à l'utilisateur.
      */
     public function allowsCollaborationFrom(?User $user): bool
     {
@@ -120,10 +121,31 @@ class FaitMarquant extends Model
             return true;
         }
 
+        if ($this->isResponsableAction($user)) {
+            return true;
+        }
+
         if ($this->department_id === null) {
             return false;
         }
 
         return $user->belongsToDepartment((int) $this->department_id);
+    }
+
+    /**
+     * L'utilisateur est-il responsable d'action, soit du fait marquant lui-même,
+     * soit d'au moins une de ses prochaines étapes ?
+     */
+    private function isResponsableAction(User $user): bool
+    {
+        $userId = (int) $user->id;
+
+        if ((int) $this->responsable_action_id === $userId) {
+            return true;
+        }
+
+        return $this->prochainesEtapes()
+            ->where('responsable_action_id', $userId)
+            ->exists();
     }
 }

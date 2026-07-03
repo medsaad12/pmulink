@@ -98,6 +98,7 @@ test('an org admin cannot edit a user from another organization', function () {
 
     $this->actingAs($admin1)
         ->put(route('users.update', $foreignUser), [
+            'organization_ids' => [$this->org1->id],
             'name' => 'Takeover',
             'email' => $foreignUser->email,
             'role_id' => $org1UserRole->id,
@@ -126,6 +127,7 @@ test('editing a multi-org user preserves department assignments in other orgs', 
     // Acting in org1, remove dept1 (send empty department list).
     $this->actingAs($admin1)
         ->put(route('users.update', $multiOrgUser), [
+            'organization_ids' => [$this->org1->id],
             'name' => $multiOrgUser->name,
             'email' => $multiOrgUser->email,
             'role_id' => $org1UserRole->id,

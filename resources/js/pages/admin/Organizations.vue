@@ -14,6 +14,7 @@ import {
 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import Heading from '@/components/Heading.vue';
+import DepartmentMultiSelect from '@/components/DepartmentMultiSelect.vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import {
@@ -45,6 +46,7 @@ type Member = {
     name: string;
     email: string;
     role_id: number | null;
+    department_ids: number[];
 };
 
 type UserOption = {
@@ -166,12 +168,14 @@ const detailsOrg = computed<OrganizationRow | null>(() =>
 const memberSearch = ref('');
 const selectedUserIds = ref<number[]>([]);
 const addRoleId = ref<number | null>(null);
+const addDepartmentIds = ref<number[]>([]);
 const addProcessing = ref(false);
 
 function openDetails(org: OrganizationRow): void {
     detailsOrgId.value = org.id;
     memberSearch.value = '';
     selectedUserIds.value = [];
+    addDepartmentIds.value = [];
     addRoleId.value = org.roles[0]?.id ?? null;
 }
 
@@ -179,6 +183,7 @@ function onDetailsOpenChange(open: boolean): void {
     if (!open) {
         detailsOrgId.value = null;
         selectedUserIds.value = [];
+        addDepartmentIds.value = [];
         memberSearch.value = '';
     }
 }
@@ -217,12 +222,17 @@ function addMembers(): void {
     addProcessing.value = true;
     router.post(
         `${baseUrl}/${org.id}/members`,
-        { user_ids: selectedUserIds.value, role_id: addRoleId.value },
+        {
+            user_ids: selectedUserIds.value,
+            role_id: addRoleId.value,
+            department_ids: addDepartmentIds.value,
+        },
         {
             preserveScroll: true,
             preserveState: true,
             onSuccess: () => {
                 selectedUserIds.value = [];
+                addDepartmentIds.value = [];
                 memberSearch.value = '';
             },
             onFinish: () => {
@@ -242,7 +252,36 @@ function changeMemberRole(
     }
     router.put(
         `${baseUrl}/${org.id}/members/${member.id}`,
-        { role_id: roleId },
+        {
+            role_id: roleId,
+            department_ids: member.department_ids,
+        },
+        { preserveScroll: true, preserveState: true },
+    );
+}
+
+function updateMemberDepartments(
+    org: OrganizationRow,
+    member: Member,
+    departmentIds: number[],
+): void {
+    if (member.role_id === null) {
+        return;
+    }
+
+    const current = [...member.department_ids].sort((a, b) => a - b).join(',');
+    const next = [...departmentIds].sort((a, b) => a - b).join(',');
+
+    if (current === next) {
+        return;
+    }
+
+    router.put(
+        `${baseUrl}/${org.id}/members/${member.id}`,
+        {
+            role_id: member.role_id,
+            department_ids: departmentIds,
+        },
         { preserveScroll: true, preserveState: true },
     );
 }
@@ -381,7 +420,6 @@ function deleteDepartment(org: OrganizationRow, department: Department): void {
                     >
                         <tr>
                             <th class="px-4 py-3 font-medium">Organisation</th>
-                            <th class="px-4 py-3 font-medium">Identifiant</th>
                             <th class="px-4 py-3 font-medium">Membres</th>
                             <th
                                 class="w-[1%] whitespace-nowrap px-4 py-3 text-right font-medium"
@@ -393,7 +431,7 @@ function deleteDepartment(org: OrganizationRow, department: Department): void {
                     <tbody>
                         <tr v-if="props.organizations.length === 0">
                             <td
-                                colspan="4"
+                                colspan="3"
                                 class="px-4 py-12 text-center text-muted-foreground"
                             >
                                 <Network
@@ -417,9 +455,6 @@ function deleteDepartment(org: OrganizationRow, department: Department): void {
                                     </span>
                                     <span class="font-medium">{{ org.name }}</span>
                                 </div>
-                            </td>
-                            <td class="px-4 py-3 text-muted-foreground">
-                                {{ org.slug }}
                             </td>
                             <td class="px-4 py-3 text-muted-foreground">
                                 {{ org.members_count }}
@@ -575,7 +610,7 @@ function deleteDepartment(org: OrganizationRow, department: Department): void {
         >
             <SheetContent
                 side="right"
-                class="flex h-full w-[42vw] min-w-[320px] max-w-[42vw] flex-col gap-0 border-l p-0 sm:max-w-[42vw]"
+                class="flex h-full w-[760px] min-w-[360px] max-w-[95vw] flex-col gap-0 border-l p-0 sm:max-w-[95vw]"
             >
                 <template v-if="detailsOrg">
                     <SheetHeader
@@ -592,12 +627,13 @@ function deleteDepartment(org: OrganizationRow, department: Department): void {
                         </SheetDescription>
                     </SheetHeader>
 
-                    <div class="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-4">
+                    <div class="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-5">
                         <!-- Current members -->
                         <section class="space-y-3">
                             <h3 class="text-sm font-semibold">
                                 Membres ({{ detailsOrg.members.length }})
                             </h3>
+
                             <div
                                 class="overflow-hidden rounded-lg border border-sidebar-border/60"
                             >
@@ -607,18 +643,19 @@ function deleteDepartment(org: OrganizationRow, department: Department): void {
                                             <th class="px-3 py-2 font-medium">
                                                 Membre
                                             </th>
-                                            <th class="px-3 py-2 font-medium">
+                                            <th class="w-40 px-3 py-2 font-medium">
                                                 Rôle
+                                            </th>
+                                            <th class="px-3 py-2 font-medium">
+                                                Départements
                                             </th>
                                             <th class="w-[1%] px-3 py-2"></th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <tr
-                                            v-if="detailsOrg.members.length === 0"
-                                        >
+                                        <tr v-if="detailsOrg.members.length === 0">
                                             <td
-                                                colspan="3"
+                                                colspan="4"
                                                 class="px-3 py-6 text-center text-muted-foreground"
                                             >
                                                 Aucun membre.
@@ -627,14 +664,14 @@ function deleteDepartment(org: OrganizationRow, department: Department): void {
                                         <tr
                                             v-for="member in detailsOrg.members"
                                             :key="member.id"
-                                            class="border-t border-sidebar-border/40"
+                                            class="border-t border-sidebar-border/40 align-top"
                                         >
                                             <td class="px-3 py-2">
-                                                <div class="font-medium">
+                                                <div class="truncate font-medium">
                                                     {{ member.name }}
                                                 </div>
                                                 <div
-                                                    class="text-xs text-muted-foreground"
+                                                    class="truncate text-xs text-muted-foreground"
                                                 >
                                                     {{ member.email }}
                                                 </div>
@@ -642,7 +679,7 @@ function deleteDepartment(org: OrganizationRow, department: Department): void {
                                             <td class="px-3 py-2">
                                                 <select
                                                     :value="member.role_id ?? ''"
-                                                    class="h-8 rounded-md border border-input bg-transparent px-2 text-sm focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
+                                                    class="h-8 w-full rounded-md border border-input bg-background px-2 text-sm focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
                                                     @change="
                                                         changeMemberRole(
                                                             detailsOrg,
@@ -671,18 +708,30 @@ function deleteDepartment(org: OrganizationRow, department: Department): void {
                                                     </option>
                                                 </select>
                                             </td>
+                                            <td class="px-3 py-2">
+                                                <DepartmentMultiSelect
+                                                    :model-value="member.department_ids"
+                                                    :departments="detailsOrg.departments"
+                                                    size="sm"
+                                                    @update:model-value="
+                                                        (ids) =>
+                                                            updateMemberDepartments(
+                                                                detailsOrg!,
+                                                                member,
+                                                                ids,
+                                                            )
+                                                    "
+                                                />
+                                            </td>
                                             <td class="px-3 py-2 text-right">
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"
                                                     type="button"
-                                                    class="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                                    class="size-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
                                                     :aria-label="`Retirer ${member.name}`"
                                                     @click="
-                                                        detachMember(
-                                                            detailsOrg,
-                                                            member,
-                                                        )
+                                                        detachMember(detailsOrg, member)
                                                     "
                                                 >
                                                     <X class="size-4" />
@@ -695,29 +744,47 @@ function deleteDepartment(org: OrganizationRow, department: Department): void {
                         </section>
 
                         <!-- Add members from list -->
-                        <section class="space-y-3">
+                        <section
+                            class="space-y-4 rounded-xl border border-sidebar-border/60 bg-muted/20 p-4"
+                        >
                             <h3 class="flex items-center gap-2 text-sm font-semibold">
                                 <UserPlus class="size-4" />
                                 Ajouter des membres
                             </h3>
 
-                            <div class="grid gap-2">
-                                <Label :for="`add-role-${detailsOrg.id}`">
-                                    Rôle attribué
-                                </Label>
-                                <select
-                                    :id="`add-role-${detailsOrg.id}`"
-                                    v-model.number="addRoleId"
-                                    class="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
-                                >
-                                    <option
-                                        v-for="role in detailsOrg.roles"
-                                        :key="role.id"
-                                        :value="role.id"
+                            <div class="grid gap-4 sm:grid-cols-2">
+                                <div class="grid gap-1.5">
+                                    <Label :for="`add-role-${detailsOrg.id}`">
+                                        Rôle attribué
+                                    </Label>
+                                    <select
+                                        :id="`add-role-${detailsOrg.id}`"
+                                        v-model.number="addRoleId"
+                                        class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
                                     >
-                                        {{ role.name }}
-                                    </option>
-                                </select>
+                                        <option
+                                            v-for="role in detailsOrg.roles"
+                                            :key="role.id"
+                                            :value="role.id"
+                                        >
+                                            {{ role.name }}
+                                        </option>
+                                    </select>
+                                </div>
+
+                                <div class="grid gap-1.5">
+                                    <Label :for="`add-departments-${detailsOrg.id}`">
+                                        Départements
+                                    </Label>
+                                    <DepartmentMultiSelect
+                                        :id="`add-departments-${detailsOrg.id}`"
+                                        v-model="addDepartmentIds"
+                                        :departments="detailsOrg.departments"
+                                    />
+                                    <p class="text-xs text-muted-foreground">
+                                        Aucune sélection = accès global.
+                                    </p>
+                                </div>
                             </div>
 
                             <div class="relative">
@@ -726,13 +793,13 @@ function deleteDepartment(org: OrganizationRow, department: Department): void {
                                 />
                                 <Input
                                     v-model="memberSearch"
-                                    class="pl-9"
+                                    class="bg-background pl-9"
                                     placeholder="Rechercher un utilisateur…"
                                 />
                             </div>
 
                             <div
-                                class="max-h-64 space-y-1 overflow-y-auto rounded-lg border border-input p-1"
+                                class="max-h-64 space-y-1 overflow-y-auto rounded-lg border border-input bg-background p-1"
                             >
                                 <p
                                     v-if="availableUsers.length === 0"
@@ -809,7 +876,7 @@ function deleteDepartment(org: OrganizationRow, department: Department): void {
         >
             <SheetContent
                 side="right"
-                class="flex h-full w-[42vw] min-w-[320px] max-w-[42vw] flex-col gap-0 border-l p-0 sm:max-w-[42vw]"
+                class="flex h-full w-[560px] min-w-[360px] max-w-[95vw] flex-col gap-0 border-l p-0 sm:max-w-[95vw]"
             >
                 <template v-if="departmentsOrg">
                     <SheetHeader

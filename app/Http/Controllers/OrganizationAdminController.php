@@ -41,6 +41,10 @@ class OrganizationAdminController extends Controller
                     ->map(static fn (Role $role) => ['id' => (int) $role->id, 'name' => (string) $role->name])
                     ->all(),
                 'members' => $organization->users()
+                    ->with(['departments' => static fn ($query) => $query
+                        ->withoutGlobalScope(OrganizationScope::class)
+                        ->where('departments.organization_id', $organization->id)
+                        ->select(['departments.id', 'departments.name', 'departments.organization_id'])])
                     ->orderBy('name')
                     ->get(['users.id', 'users.name', 'users.email'])
                     ->map(static fn (User $user) => [
@@ -50,6 +54,11 @@ class OrganizationAdminController extends Controller
                         'role_id' => $user->getRelationValue('pivot')?->role_id === null
                             ? null
                             : (int) $user->getRelationValue('pivot')->role_id,
+                        'department_ids' => $user->departments
+                            ->pluck('id')
+                            ->map(static fn ($id) => (int) $id)
+                            ->values()
+                            ->all(),
                     ])
                     ->all(),
                 'departments' => $organization->departments()
@@ -125,6 +134,11 @@ class OrganizationAdminController extends Controller
                 'integer',
                 Rule::exists('roles', 'id')->where('organization_id', $organization->id),
             ],
+            'department_ids' => ['sometimes', 'array'],
+            'department_ids.*' => [
+                'integer',
+                Rule::exists('departments', 'id')->where('organization_id', $organization->id),
+            ],
         ]);
 
         $attach = [];
@@ -133,6 +147,13 @@ class OrganizationAdminController extends Controller
         }
 
         $organization->users()->syncWithoutDetaching($attach);
+
+        $departmentIds = $validated['department_ids'] ?? [];
+
+        foreach ($validated['user_ids'] as $userId) {
+            $user = User::query()->findOrFail((int) $userId);
+            $this->syncDepartmentsWithinOrganization($user, $departmentIds, (int) $organization->id);
+        }
 
         return back();
     }
@@ -145,11 +166,24 @@ class OrganizationAdminController extends Controller
                 'integer',
                 Rule::exists('roles', 'id')->where('organization_id', $organization->id),
             ],
+            'department_ids' => ['sometimes', 'array'],
+            'department_ids.*' => [
+                'integer',
+                Rule::exists('departments', 'id')->where('organization_id', $organization->id),
+            ],
         ]);
 
         $organization->users()->updateExistingPivot($user->id, [
             'role_id' => (int) $validated['role_id'],
         ]);
+
+        if (array_key_exists('department_ids', $validated)) {
+            $this->syncDepartmentsWithinOrganization(
+                $user,
+                $validated['department_ids'],
+                (int) $organization->id,
+            );
+        }
 
         return back();
     }
@@ -157,6 +191,16 @@ class OrganizationAdminController extends Controller
     public function detachMember(Request $request, Organization $organization, User $user): RedirectResponse
     {
         $organization->users()->detach($user->id);
+
+        $organizationDepartmentIds = Department::query()
+            ->withoutGlobalScope(OrganizationScope::class)
+            ->where('organization_id', $organization->id)
+            ->pluck('id')
+            ->all();
+
+        if ($organizationDepartmentIds !== []) {
+            $user->departments()->detach($organizationDepartmentIds);
+        }
 
         return back();
     }
@@ -194,6 +238,35 @@ class OrganizationAdminController extends Controller
         $this->resolveDepartment($organization, (int) $department)->delete();
 
         return back();
+    }
+
+    /**
+     * Sync department assignments for a specific organization only, leaving the
+     * user's departments in other organizations untouched.
+     *
+     * @param  list<int|string>  $departmentIds
+     */
+    private function syncDepartmentsWithinOrganization(User $user, array $departmentIds, int $organizationId): void
+    {
+        $organizationDepartmentIds = Department::query()
+            ->withoutGlobalScope(OrganizationScope::class)
+            ->where('organization_id', $organizationId)
+            ->pluck('id')
+            ->map(static fn ($id) => (int) $id)
+            ->all();
+
+        $keep = array_values(array_intersect(
+            array_map(static fn ($id) => (int) $id, $departmentIds),
+            $organizationDepartmentIds,
+        ));
+
+        $user->departments()->syncWithoutDetaching($keep);
+
+        $toDetach = array_values(array_diff($organizationDepartmentIds, $keep));
+
+        if ($toDetach !== []) {
+            $user->departments()->detach($toDetach);
+        }
     }
 
     /**

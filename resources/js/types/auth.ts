@@ -1,6 +1,14 @@
 export type DepartmentSummary = {
     id: number;
     name: string;
+    organization_id?: number;
+};
+
+export type UserMembership = {
+    organization_id: number;
+    organization_name?: string;
+    role_id: number | null;
+    role_name?: string | null;
 };
 
 export type User = {
@@ -9,7 +17,8 @@ export type User = {
     email: string;
     avatar?: string;
     email_verified_at: string | null;
-    role_id: number;
+    role_id?: number;
+    memberships?: UserMembership[];
     departments?: DepartmentSummary[];
     organizations?: OrganizationSummary[];
     role?: { id: number; name: string } | null;

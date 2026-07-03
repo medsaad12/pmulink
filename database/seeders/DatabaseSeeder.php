@@ -17,7 +17,7 @@ class DatabaseSeeder extends Seeder
     {
         $organization = Organization::query()->updateOrCreate(
             ['slug' => 'main'],
-            ['name' => 'Production, maintenance, utilités', 'is_active' => true],
+            ['name' => 'P,M,U', 'is_active' => true],
         );
 
         // Bind the org so tenant-owned models seeded below are auto-stamped.
@@ -31,8 +31,8 @@ class DatabaseSeeder extends Seeder
         $admin = Role::query()->where('name', 'Administrateur')->firstOrFail();
 
         $user = User::query()->updateOrCreate(
-            ['email' => 'test@example.com'],
-            ['name' => 'Test User', 'password' => Hash::make('password')],
+            ['email' => 'support@laprophan.com'],
+            ['name' => 'Support', 'password' => Hash::make('password')],
         );
 
         $user->organizations()->syncWithoutDetaching([

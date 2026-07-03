@@ -19,7 +19,7 @@ class RbacSeeder extends Seeder
         if (! app()->bound('currentOrganizationId') || app('currentOrganizationId') === null) {
             $organization = Organization::query()->orderBy('id')->first()
                 ?? Organization::query()->create([
-                    'name' => 'Comex',
+                    'name' => 'Pmu',
                     'slug' => 'main',
                     'is_active' => true,
                 ]);

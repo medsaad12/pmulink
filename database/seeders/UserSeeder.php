@@ -75,6 +75,19 @@ class UserSeeder extends Seeder
         ],
     ];
 
+    /**
+     * Administrateurs globaux (sans département).
+     *
+     * @var list<array{name: string, email: string, password: string}>
+     */
+    private const ADMIN_USERS = [
+        [
+            'name' => 'Otman Rabichi',
+            'email' => 'otman.rabichi@laprophan.com',
+            'password' => '$2y$12$OQ.EmNddTYDMMHlkx9TNcOpaTNYlSuPBw9TaU3UlTc68puZKRHw9C',
+        ],
+    ];
+
     public function run(): void
     {
         $organization = Organization::query()->orderBy('id')->first();
@@ -86,11 +99,25 @@ class UserSeeder extends Seeder
         // Bind the org so tenant-scoped lookups (roles, departments) resolve to it.
         app()->instance('currentOrganizationId', $organization->id);
 
-        $role = Role::query()->where('name', 'Utilisateur')->first();
+        $userRole = Role::query()->where('name', 'Utilisateur')->first();
+        $adminRole = Role::query()->where('name', 'Administrateur')->first();
 
         $departments = Department::query()
             ->where('organization_id', $organization->id)
             ->pluck('id', 'name');
+
+        foreach (self::ADMIN_USERS as $row) {
+            $user = User::query()->updateOrCreate(
+                ['email' => $row['email']],
+                ['name' => $row['name'], 'password' => $row['password']],
+            );
+
+            $user->forceFill(['is_sup' => true])->save();
+
+            $user->organizations()->syncWithoutDetaching([
+                $organization->id => ['role_id' => $adminRole?->id],
+            ]);
+        }
 
         foreach (self::USERS as $row) {
             $user = User::query()->updateOrCreate(
@@ -99,7 +126,7 @@ class UserSeeder extends Seeder
             );
 
             $user->organizations()->syncWithoutDetaching([
-                $organization->id => ['role_id' => $role?->id],
+                $organization->id => ['role_id' => $userRole?->id],
             ]);
 
             $departmentId = $departments->get($row['department']);

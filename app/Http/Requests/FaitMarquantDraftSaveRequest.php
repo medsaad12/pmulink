@@ -37,18 +37,36 @@ class FaitMarquantDraftSaveRequest extends FormRequest
      */
     public function rules(): array
     {
-        $user = $this->user();
-
         return [
             'title' => ['required', 'string', 'max:255'],
             'fait_status_id' => ['required', 'integer', 'exists:fait_statuses,id'],
             'status_id' => ['required', 'integer', 'exists:statuses,id'],
-            'department_id' => ['required', 'integer', Rule::in($user?->departmentIds() ?? [])],
+            'department_id' => ['required', 'integer', Rule::in($this->allowedDepartmentIds())],
             ...$this->responsableActionIdRules(),
             ...$this->prochainesEtapesRules(),
             'commentaires' => ['sometimes', 'array'],
             'commentaires.*' => ['string', 'max:1000'],
         ];
+    }
+
+    /**
+     * Départements que l'utilisateur peut affecter au fait : les siens, plus le
+     * département courant du fait (pour un responsable d'action hors département,
+     * qui doit pouvoir le conserver tel quel).
+     *
+     * @return list<int>
+     */
+    private function allowedDepartmentIds(): array
+    {
+        $ids = $this->user()?->departmentIds() ?? [];
+
+        /** @var FaitMarquant|null $fait */
+        $fait = $this->route('faitMarquant');
+        if ($fait instanceof FaitMarquant && $fait->department_id !== null) {
+            $ids[] = (int) $fait->department_id;
+        }
+
+        return array_values(array_unique($ids));
     }
 
     /**

@@ -31,7 +31,7 @@ import {
 import { usePermissions } from '@/composables/usePermissions';
 import { dashboard } from '@/routes';
 import { index } from '@/routes/users';
-import type { User } from '@/types/auth';
+import type { User, UserMembership } from '@/types/auth';
 import { Form, Head, Link, usePage } from '@inertiajs/vue3';
 import { CircleAlert, Pencil, Plus, Trash2, Users } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
@@ -64,10 +64,16 @@ type DepartmentOption = {
     name: string;
 };
 
-const props = defineProps<{
-    users: PaginatedUsers;
+type OrganizationFormOption = {
+    id: number;
+    name: string;
     roles: RoleOption[];
     departments: DepartmentOption[];
+};
+
+const props = defineProps<{
+    users: PaginatedUsers;
+    organizations: OrganizationFormOption[];
 }>();
 
 defineOptions({
@@ -84,20 +90,194 @@ const { can } = usePermissions();
 const authUserId = computed(() => page.props.auth.user?.id ?? null);
 
 const deleteTarget = ref<User | null>(null);
+const deleteOrganizationId = ref<number | null>(null);
 
 const sheetOpen = ref(false);
 const sheetMode = ref<SheetMode>(null);
 const editingUser = ref<User | null>(null);
+const createOrganizationIds = ref<number[]>([]);
+const editOrganizationIds = ref<number[]>([]);
+
+function rolesForOrganizationIds(orgIds: number[]): RoleOption[] {
+    if (orgIds.length === 0) {
+        return [];
+    }
+
+    const organizations = props.organizations.filter((organization) =>
+        orgIds.includes(organization.id),
+    );
+
+    if (organizations.length === 0) {
+        return [];
+    }
+
+    let sharedNames = new Set(organizations[0].roles.map((role) => role.name));
+
+    for (const organization of organizations.slice(1)) {
+        const names = new Set(organization.roles.map((role) => role.name));
+        sharedNames = new Set(
+            [...sharedNames].filter((name) => names.has(name)),
+        );
+    }
+
+    return [...sharedNames]
+        .sort((a, b) => a.localeCompare(b, 'fr'))
+        .map((name) => {
+            const role =
+                organizations[0].roles.find(
+                    (candidate) => candidate.name === name,
+                ) ?? organizations[0].roles[0];
+
+            return { id: role.id, name };
+        });
+}
+
+type DepartmentWithOrg = DepartmentOption & {
+    organizationName: string;
+    label: string;
+};
+
+function departmentsForOrganizationIds(orgIds: number[]): DepartmentWithOrg[] {
+    const organizations = props.organizations.filter((organization) =>
+        orgIds.includes(organization.id),
+    );
+
+    return organizations.flatMap((organization) =>
+        organization.departments.map((department) => ({
+            ...department,
+            organizationName: organization.name,
+            label:
+                organizations.length > 1
+                    ? `${organization.name} — ${department.name}`
+                    : department.name,
+        })),
+    );
+}
+
+const createRoles = computed(() =>
+    rolesForOrganizationIds(createOrganizationIds.value),
+);
+const createDepartments = computed(() =>
+    departmentsForOrganizationIds(createOrganizationIds.value),
+);
+
+const editRoles = computed(() => rolesForOrganizationIds(editOrganizationIds.value));
+const editDepartments = computed(() =>
+    departmentsForOrganizationIds(editOrganizationIds.value),
+);
+
+function isOrganizationSelected(
+    organizationId: number,
+    mode: 'create' | 'edit',
+): boolean {
+    const selected =
+        mode === 'create'
+            ? createOrganizationIds.value
+            : editOrganizationIds.value;
+
+    return selected.includes(organizationId);
+}
+
+function toggleOrganization(
+    organizationId: number,
+    mode: 'create' | 'edit',
+    checked: boolean,
+): void {
+    const target =
+        mode === 'create' ? createOrganizationIds : editOrganizationIds;
+
+    if (checked) {
+        if (!target.value.includes(organizationId)) {
+            target.value = [...target.value, organizationId].sort(
+                (a, b) => a - b,
+            );
+        }
+
+        return;
+    }
+
+    target.value = target.value.filter((id) => id !== organizationId);
+}
+
+function membershipForOrganization(
+    user: User,
+    organizationId: number | null,
+): UserMembership | null {
+    if (organizationId === null) {
+        return null;
+    }
+
+    return (
+        user.memberships?.find((m) => m.organization_id === organizationId) ??
+        null
+    );
+}
+
+function editRoleIdForSelectedOrgs(): number | null {
+    if (!editingUser.value || editOrganizationIds.value.length === 0) {
+        return null;
+    }
+
+    const membershipRoleIds = editOrganizationIds.value
+        .map(
+            (organizationId) =>
+                membershipForOrganization(editingUser.value!, organizationId)
+                    ?.role_id ?? null,
+        )
+        .filter((roleId): roleId is number => roleId !== null);
+
+    if (membershipRoleIds.length === 0) {
+        return editRoles.value[0]?.id ?? null;
+    }
+
+    const roleNames = new Set(
+        membershipRoleIds
+            .map((roleId) => {
+                for (const organization of props.organizations) {
+                    const role = organization.roles.find(
+                        (candidate) => candidate.id === roleId,
+                    );
+                    if (role) {
+                        return role.name;
+                    }
+                }
+
+                return null;
+            })
+            .filter((name): name is string => name !== null),
+    );
+
+    if (roleNames.size === 1) {
+        const roleName = [...roleNames][0];
+        return (
+            editRoles.value.find((role) => role.name === roleName)?.id ?? null
+        );
+    }
+
+    return editRoles.value[0]?.id ?? membershipRoleIds[0] ?? null;
+}
+
+function userHasDepartmentInOrg(user: User, departmentId: number): boolean {
+    return user.departments?.some((d) => d.id === departmentId) ?? false;
+}
 
 function openCreate(): void {
     sheetMode.value = 'create';
     editingUser.value = null;
+    createOrganizationIds.value =
+        props.organizations.length > 0 ? [props.organizations[0].id] : [];
+    editOrganizationIds.value = [];
     sheetOpen.value = true;
 }
 
 function openEdit(user: User): void {
     sheetMode.value = 'edit';
     editingUser.value = user;
+    editOrganizationIds.value =
+        user.organizations?.map((organization) => organization.id) ??
+        user.memberships?.map((membership) => membership.organization_id) ??
+        [];
+    createOrganizationIds.value = [];
     sheetOpen.value = true;
 }
 
@@ -106,6 +286,8 @@ function onSheetOpenChange(open: boolean): void {
     if (!open) {
         sheetMode.value = null;
         editingUser.value = null;
+        createOrganizationIds.value = [];
+        editOrganizationIds.value = [];
     }
 }
 
@@ -113,15 +295,23 @@ function closeSheetOnSuccess(): void {
     sheetOpen.value = false;
     sheetMode.value = null;
     editingUser.value = null;
+    createOrganizationIds.value = [];
+    editOrganizationIds.value = [];
 }
 
 function requestDelete(user: User): void {
     deleteTarget.value = user;
+    deleteOrganizationId.value =
+        user.memberships?.[0]?.organization_id ??
+        user.organizations?.[0]?.id ??
+        props.organizations[0]?.id ??
+        null;
 }
 
 function closeDelete(open: boolean): void {
     if (!open) {
         deleteTarget.value = null;
+        deleteOrganizationId.value = null;
     }
 }
 
@@ -218,9 +408,18 @@ function hasFormErrors(errors: Record<string, unknown>): boolean {
                                 <span v-else class="italic">—</span>
                             </td>
                             <td class="px-4 py-3 text-muted-foreground">
-                                <span v-if="user.role?.name">{{
-                                    user.role.name
-                                }}</span>
+                                <span
+                                    v-if="user.memberships?.length"
+                                    class="flex flex-wrap gap-1"
+                                >
+                                    <Badge
+                                        v-for="membership in user.memberships"
+                                        :key="`${user.id}-${membership.organization_id}`"
+                                        variant="outline"
+                                    >
+                                        {{ membership.role_name ?? '—' }}
+                                    </Badge>
+                                </span>
                                 <span v-else class="italic">—</span>
                             </td>
                             <td class="px-4 py-3 text-muted-foreground">
@@ -308,8 +507,8 @@ function hasFormErrors(errors: Record<string, unknown>): boolean {
                     <SheetDescription>
                         {{
                             sheetMode === 'create'
-                                ? 'Renseignez le nom, l’e-mail, le rôle et le mot de passe. Le département est facultatif (utilisateur général).'
-                                : 'Mettez à jour les informations et le rôle. Le département est facultatif (utilisateur général). Laissez le mot de passe vide pour ne pas le modifier.'
+                                ? 'Renseignez l’organisation, le nom, l’e-mail, le rôle et le mot de passe. Le département est facultatif (utilisateur général).'
+                                : 'Mettez à jour l’organisation, les informations et le rôle. Le département est facultatif (utilisateur général). Laissez le mot de passe vide pour ne pas le modifier.'
                         }}
                     </SheetDescription>
                 </SheetHeader>
@@ -335,6 +534,57 @@ function hasFormErrors(errors: Record<string, unknown>): boolean {
                                 réessayez.
                             </AlertDescription>
                         </Alert>
+                        <div class="grid gap-2">
+                            <Label>Organisations</Label>
+                            <p class="text-xs text-muted-foreground">
+                                Sélectionnez une ou plusieurs organisations.
+                            </p>
+                            <div
+                                v-if="props.organizations.length === 0"
+                                class="rounded-md border border-dashed border-input p-3 text-sm text-muted-foreground"
+                            >
+                                Aucune organisation disponible.
+                            </div>
+                            <div
+                                v-else
+                                class="max-h-40 space-y-2 overflow-y-auto rounded-md border border-input p-3"
+                                :class="
+                                    errors.organization_ids
+                                        ? 'border-destructive'
+                                        : ''
+                                "
+                            >
+                                <label
+                                    v-for="org in props.organizations"
+                                    :key="`create-org-${org.id}`"
+                                    class="flex cursor-pointer items-center gap-2 text-sm"
+                                >
+                                    <input
+                                        type="checkbox"
+                                        name="organization_ids[]"
+                                        :value="org.id"
+                                        class="size-4 rounded border-input"
+                                        :checked="
+                                            isOrganizationSelected(
+                                                org.id,
+                                                'create',
+                                            )
+                                        "
+                                        @change="
+                                            toggleOrganization(
+                                                org.id,
+                                                'create',
+                                                (
+                                                    $event.target as HTMLInputElement
+                                                ).checked,
+                                            )
+                                        "
+                                    />
+                                    {{ org.name }}
+                                </label>
+                            </div>
+                            <InputError :message="errors.organization_ids" />
+                        </div>
                         <div class="grid gap-2">
                             <Label for="user-create-name">Nom</Label>
                             <Input
@@ -376,6 +626,13 @@ function hasFormErrors(errors: Record<string, unknown>): boolean {
                                 Aucune case cochée = utilisateur global (propriétaire).
                             </p>
                             <div
+                                v-if="createDepartments.length === 0"
+                                class="rounded-md border border-dashed border-input p-3 text-sm text-muted-foreground"
+                            >
+                                Aucun département pour les organisations sélectionnées.
+                            </div>
+                            <div
+                                v-else
                                 class="max-h-40 space-y-2 overflow-y-auto rounded-md border border-input p-3"
                                 :class="
                                     errors.department_ids
@@ -384,7 +641,7 @@ function hasFormErrors(errors: Record<string, unknown>): boolean {
                                 "
                             >
                                 <label
-                                    v-for="d in props.departments"
+                                    v-for="d in createDepartments"
                                     :key="`create-dept-${d.id}`"
                                     class="flex cursor-pointer items-center gap-2 text-sm"
                                 >
@@ -394,7 +651,7 @@ function hasFormErrors(errors: Record<string, unknown>): boolean {
                                         :value="d.id"
                                         class="size-4 rounded border-input"
                                     />
-                                    {{ d.name }}
+                                    {{ d.label }}
                                 </label>
                             </div>
                             <InputError :message="errors.department_ids" />
@@ -403,6 +660,7 @@ function hasFormErrors(errors: Record<string, unknown>): boolean {
                             <Label for="user-create-role_id">Rôle</Label>
                             <select
                                 id="user-create-role_id"
+                                :key="`create-role-${createOrganizationIds.join('-')}`"
                                 name="role_id"
                                 required
                                 class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none aria-invalid:border-destructive"
@@ -412,12 +670,13 @@ function hasFormErrors(errors: Record<string, unknown>): boolean {
                                         : ''
                                 "
                                 :aria-invalid="errors.role_id ? 'true' : undefined"
+                                :disabled="createRoles.length === 0"
                             >
                                 <option value="" disabled selected hidden>
                                     Choisir un rôle…
                                 </option>
                                 <option
-                                    v-for="r in props.roles"
+                                    v-for="r in createRoles"
                                     :key="r.id"
                                     :value="r.id"
                                 >
@@ -507,6 +766,50 @@ function hasFormErrors(errors: Record<string, unknown>): boolean {
                             </AlertDescription>
                         </Alert>
                         <div class="grid gap-2">
+                            <Label>Organisations</Label>
+                            <p class="text-xs text-muted-foreground">
+                                Sélectionnez une ou plusieurs organisations.
+                            </p>
+                            <div
+                                class="max-h-40 space-y-2 overflow-y-auto rounded-md border border-input p-3"
+                                :class="
+                                    errors.organization_ids
+                                        ? 'border-destructive'
+                                        : ''
+                                "
+                            >
+                                <label
+                                    v-for="org in props.organizations"
+                                    :key="`edit-org-${editingUser.id}-${org.id}`"
+                                    class="flex cursor-pointer items-center gap-2 text-sm"
+                                >
+                                    <input
+                                        type="checkbox"
+                                        name="organization_ids[]"
+                                        :value="org.id"
+                                        class="size-4 rounded border-input"
+                                        :checked="
+                                            isOrganizationSelected(
+                                                org.id,
+                                                'edit',
+                                            )
+                                        "
+                                        @change="
+                                            toggleOrganization(
+                                                org.id,
+                                                'edit',
+                                                (
+                                                    $event.target as HTMLInputElement
+                                                ).checked,
+                                            )
+                                        "
+                                    />
+                                    {{ org.name }}
+                                </label>
+                            </div>
+                            <InputError :message="errors.organization_ids" />
+                        </div>
+                        <div class="grid gap-2">
                             <Label :for="`user-edit-${editingUser.id}-name`"
                                 >Nom</Label
                             >
@@ -553,6 +856,13 @@ function hasFormErrors(errors: Record<string, unknown>): boolean {
                                 Aucune case cochée = utilisateur global (propriétaire).
                             </p>
                             <div
+                                v-if="editDepartments.length === 0"
+                                class="rounded-md border border-dashed border-input p-3 text-sm text-muted-foreground"
+                            >
+                                Aucun département pour les organisations sélectionnées.
+                            </div>
+                            <div
+                                v-else
                                 class="max-h-40 space-y-2 overflow-y-auto rounded-md border border-input p-3"
                                 :class="
                                     errors.department_ids
@@ -561,7 +871,7 @@ function hasFormErrors(errors: Record<string, unknown>): boolean {
                                 "
                             >
                                 <label
-                                    v-for="d in props.departments"
+                                    v-for="d in editDepartments"
                                     :key="`edit-dept-${editingUser.id}-${d.id}`"
                                     class="flex cursor-pointer items-center gap-2 text-sm"
                                 >
@@ -571,12 +881,13 @@ function hasFormErrors(errors: Record<string, unknown>): boolean {
                                         :value="d.id"
                                         class="size-4 rounded border-input"
                                         :checked="
-                                            editingUser.departments?.some(
-                                                (ud) => ud.id === d.id,
-                                            ) ?? false
+                                            userHasDepartmentInOrg(
+                                                editingUser,
+                                                d.id,
+                                            )
                                         "
                                     />
-                                    {{ d.name }}
+                                    {{ d.label }}
                                 </label>
                             </div>
                             <InputError :message="errors.department_ids" />
@@ -587,7 +898,7 @@ function hasFormErrors(errors: Record<string, unknown>): boolean {
                             >
                             <select
                                 :id="`user-edit-${editingUser.id}-role_id`"
-                                :key="`user-role-${editingUser.id}`"
+                                :key="`user-role-${editingUser.id}-${editOrganizationIds.join('-')}`"
                                 name="role_id"
                                 required
                                 class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
@@ -597,12 +908,15 @@ function hasFormErrors(errors: Record<string, unknown>): boolean {
                                         : ''
                                 "
                                 :aria-invalid="errors.role_id ? 'true' : undefined"
+                                :disabled="editRoles.length === 0"
                             >
                                 <option
-                                    v-for="r in props.roles"
+                                    v-for="r in editRoles"
                                     :key="r.id"
                                     :value="r.id"
-                                    :selected="editingUser.role_id === r.id"
+                                    :selected="
+                                        editRoleIdForSelectedOrgs() === r.id
+                                    "
                                 >
                                     {{ r.name }}
                                 </option>
@@ -676,11 +990,25 @@ function hasFormErrors(errors: Record<string, unknown>): boolean {
         <Dialog :open="deleteTarget !== null" @update:open="closeDelete">
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Supprimer cet utilisateur ?</DialogTitle>
+                    <DialogTitle>Retirer cet utilisateur ?</DialogTitle>
                     <DialogDescription>
-                        Cette action supprimera définitivement
-                        <strong>{{ deleteTarget?.name }}</strong>
-                        et ne pourra pas être annulée.
+                        <template
+                            v-if="
+                                deleteTarget?.organizations &&
+                                deleteTarget.organizations.length > 1
+                            "
+                        >
+                            Choisissez l’organisation dont
+                            <strong>{{ deleteTarget?.name }}</strong>
+                            doit être retiré. S’il n’appartient plus à aucune
+                            organisation, son compte sera supprimé.
+                        </template>
+                        <template v-else>
+                            Cette action retirera
+                            <strong>{{ deleteTarget?.name }}</strong>
+                            de l’organisation. S’il n’appartient plus à aucune
+                            organisation, son compte sera supprimé.
+                        </template>
                     </DialogDescription>
                 </DialogHeader>
                 <Form
@@ -690,6 +1018,36 @@ function hasFormErrors(errors: Record<string, unknown>): boolean {
                     @success="deleteTarget = null"
                     v-slot="{ processing }"
                 >
+                    <div
+                        v-if="
+                            deleteTarget.organizations &&
+                            deleteTarget.organizations.length > 1
+                        "
+                        class="grid gap-2 py-2"
+                    >
+                        <Label for="delete-organization_id">Organisation</Label>
+                        <select
+                            id="delete-organization_id"
+                            name="organization_id"
+                            required
+                            v-model.number="deleteOrganizationId"
+                            class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
+                        >
+                            <option
+                                v-for="org in deleteTarget.organizations"
+                                :key="org.id"
+                                :value="org.id"
+                            >
+                                {{ org.name }}
+                            </option>
+                        </select>
+                    </div>
+                    <input
+                        v-else
+                        type="hidden"
+                        name="organization_id"
+                        :value="deleteOrganizationId ?? ''"
+                    />
                     <DialogFooter class="gap-2">
                         <DialogClose as-child>
                             <Button type="button" variant="secondary">
